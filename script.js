@@ -1,3 +1,109 @@
+let stream = null;
+let countdown = null;
+
+async function startCamera() {
+    try {
+        if (stream) {
+            stopCamera();
+            return;
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            } 
+        });
+
+        const video = document.getElementById('camera');
+        video.srcObject = stream;
+        video.style.display = 'block';
+        
+        // Hide the captured image if it's showing
+        document.getElementById('captured-image').style.display = 'none';
+        
+        // Wait for video to be ready
+        await new Promise(resolve => video.onloadedmetadata = resolve);
+        
+        // Take picture after 2 seconds
+        setTimeout(async () => {
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Display the captured image
+            const capturedImage = document.getElementById('captured-image');
+            capturedImage.src = canvas.toDataURL('image/jpeg');
+            capturedImage.style.display = 'block';
+            
+            // Hide video
+            video.style.display = 'none';
+            
+            // Stop camera
+            stopCamera();
+            
+            // Process the image
+            await processImage(canvas);
+        }, 2000);
+
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+        alert('Error al acceder a la cámara. Por favor, verifica los permisos.');
+    }
+}
+
+function stopCamera() {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+    document.getElementById('camera').style.display = 'none';
+}
+
+function clearAll() {
+    // Clear QR codes
+    document.getElementById('qrcode').innerHTML = '';
+    document.getElementById('qr-text').innerHTML = '';
+    document.getElementById('countdown').innerHTML = '';
+    
+    // Clear captured image
+    const capturedImage = document.getElementById('captured-image');
+    capturedImage.src = '';
+    capturedImage.style.display = 'none';
+    
+    // Stop camera if running
+    stopCamera();
+    
+    // Clear countdown
+    if (countdown) {
+        clearInterval(countdown);
+        countdown = null;
+    }
+}
+
+function startCountdown() {
+    if (countdown) {
+        clearInterval(countdown);
+    }
+
+    let seconds = 30;
+    const countdownElement = document.getElementById('countdown');
+    
+    countdown = setInterval(() => {
+        countdownElement.textContent = `Actualizando en ${seconds} segundos`;
+        seconds--;
+        
+        if (seconds < 0) {
+            clearInterval(countdown);
+            startCamera();
+        }
+    }, 1000);
+}
+
 async function processImage(canvas) {
     try {
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
@@ -68,7 +174,6 @@ async function processImage(canvas) {
                     // Crear contenedor para este código QR
                     const qrContainer = document.createElement('div');
                     qrContainer.className = 'qr-item';
-                    qrContainer.style.marginBottom = '20px';
                     
                     // Crear div para el código QR
                     const qrDiv = document.createElement('div');
